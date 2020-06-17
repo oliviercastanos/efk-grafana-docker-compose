@@ -1,0 +1,101 @@
+version: '3.5'
+services:
+
+  cadvisor:
+    image: google/cadvisor:latest
+    ports: ["8080:8080"]
+    volumes: ["/:/rootfs:ro","/var/run:/var/run:ro","/sys:/sys:ro","/var/lib/docker/:/var/lib/docker:ro","/dev/disk/:/dev/disk:ro"]
+    restart: always
+    hostname: cadvisor
+    container_name: cadvisor
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+    command: --store_container_labels=false --docker_only --disable_metrics=disk,tcp,udp
+
+  ############################################################################################################  
+
+  prometheus:
+    ports: ["8090:8090"]
+    volumes: ["/data/prometheus:/prometheus"]
+    build: ./prometheus
+    restart: always
+    hostname: prom
+    container_name: prom
+    command:
+    - '--config.file=/etc/prometheus/prometheus.yml'
+    - '--storage.tsdb.path=/prometheus'
+    - '--web.console.libraries=/etc/prometheus/console_libraries'
+    - '--web.console.templates=/etc/prometheus/consoles'
+    - '--storage.tsdb.retention.time=7d'
+    - '--web.enable-lifecycle'
+  ############################################################################################################  
+
+  node-exporter:
+    ports: ["9100:9100"]
+    image: prom/node-exporter
+    restart: always
+    hostname: node-exporter
+    container_name: node-exporter
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+      ############################################################################################################  
+
+  grafana:
+    ports: ["3000:3000"]
+    image: grafana/grafana:6.4.4
+    volumes: ["/data/grafana:/var/lib/grafana"]
+    restart: always
+    hostname: grafana
+    container_name: grafana
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+
+
+  ############################################################################################################  
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.4.2
+    environment: {discovery.type: single-node}
+    hostname: elasticsearch
+    container_name: elasticsearch
+
+    ports:
+      - 9200:9200
+      - 9300:9300
+
+    volumes: ['/data/elasticsearch:/usr/share/elasticsearch/data']
+    restart: always
+
+  ############################################################################################################  
+
+
+  fluentd:
+    build: ./fluentd
+    hostname: fluentd
+
+    container_name: fluentd
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    restart: always
+
+   ############################################################################################################  
+   
+  kibana:
+    build: ./kibana
+    environment: {ELASTICSEARCH_URL: "http://elasticsearch:9200" }
+    hostname: kibana
+    container_name: kibana
+    restart: always
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+    ports: ["5601:5601"]
+
