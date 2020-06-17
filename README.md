@@ -1,1 +1,1 @@
-#docker-compose to deploy a EFK and Grafana stack
+# docker-compose to deploy a EFK and Grafana stack
